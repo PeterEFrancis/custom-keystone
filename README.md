@@ -24,10 +24,10 @@ The GitHub Pages workflow publishes `dist/` whenever its files change on `main`.
 - Drag a corner; focused corners also accept arrow keys (Shift moves farther).
 - Scroll inside the frame; use Shift + scroll for horizontal movement.
 - Use **+**, **−**, or Ctrl/Command + scroll to zoom from 25% to 400%.
-- **Fit** returns the document to 100%. **Reset frame** restores the rectangle.
+- **Fit** returns the document to 100%. **Reset frame** restores a rectangle matching the image or first PDF page.
 - Ctrl/Command + O opens another file. Ctrl/Command + plus/minus/0 changes zoom.
 
-At 100%, an image or each PDF page fills the box. The image/page is stretched to the four-corner perspective. Files stay in browser memory and are not uploaded to a server. Opening a new file preserves the frame corners. Reloading clears the workspace.
+Opening a file resets the frame to the aspect ratio of the image or first PDF page, so it starts undistorted at 100%. Other PDF pages keep their proportions within that frame. Drag the corners to apply perspective distortion. Files stay in browser memory and are not uploaded to a server. Reloading clears the workspace.
 
 PDF rendering uses locally vendored Mozilla PDF.js (Apache-2.0); its license and pinned version are in `dist/vendor/pdfjs/`. Nearby PDF pages are rendered on demand. Password-protected PDFs need an unlocked copy. Supported image formats depend on the browser.
 

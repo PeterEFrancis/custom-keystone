@@ -2,7 +2,7 @@ import { WIDTH, HEIGHT, homography, validQuad } from './geometry.js';
 
 const $ = id => document.getElementById(id);
 const stage = $('stage'), frame = $('frame'), viewport = $('viewport');
-let points = [], stageSize = { width:0, height:0 };
+let points = [], stageSize = { width:0, height:0 }, viewHeight = HEIGHT, frameAdjusted = false;
 const names = ['Top left','Top right','Bottom right','Bottom left'];
 const handles = names.map((name,i)=>{
   const button = document.createElement('button');
@@ -16,10 +16,23 @@ const handles = names.map((name,i)=>{
   button.addEventListener('keydown',e=>{const delta={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];if(!delta)return;e.preventDefault();const step=e.shiftKey?10:2;moveCorner(i,points[i].x+delta[0]*step,points[i].y+delta[1]*step);});
   return button;
 });
-function draw(){frame.style.transform=`matrix3d(${homography(points).join(',')})`;frame.style.setProperty('--ui-scale',WIDTH/Math.max(80,(Math.hypot(points[1].x-points[0].x,points[1].y-points[0].y)+Math.hypot(points[2].x-points[3].x,points[2].y-points[3].y))/2));$('polygon').setAttribute('points',points.map(p=>`${p.x},${p.y}`).join(' '));handles.forEach((el,i)=>{el.style.left=`${points[i].x}px`;el.style.top=`${points[i].y}px`;});}
-function resetFrame(){const w=Math.min(stage.clientWidth*.76,700,stage.clientHeight*1.5),h=w/1.5;const x=(stage.clientWidth-w)/2,y=(stage.clientHeight-h)/2;points=[{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}];draw();}
-function moveCorner(i,x,y){const next=points.map(p=>({...p}));next[i]={x:Math.max(6,Math.min(stage.clientWidth-6,x)),y:Math.max(6,Math.min(stage.clientHeight-6,y))};if(validQuad(next)){points=next;draw();}}
-new ResizeObserver(()=>{const width=stage.clientWidth,height=stage.clientHeight;if(!points.length||!stageSize.width||!stageSize.height)resetFrame();else{points=points.map(p=>({x:p.x*width/stageSize.width,y:p.y*height/stageSize.height}));draw();}stageSize={width,height};}).observe(stage);
+function draw(){frame.style.height=`${viewHeight}px`;frame.style.transform=`matrix3d(${homography(points,WIDTH,viewHeight).join(',')})`;frame.style.setProperty('--ui-scale',WIDTH/Math.max(80,(Math.hypot(points[1].x-points[0].x,points[1].y-points[0].y)+Math.hypot(points[2].x-points[3].x,points[2].y-points[3].y))/2));$('polygon').setAttribute('points',points.map(p=>`${p.x},${p.y}`).join(' '));handles.forEach((el,i)=>{el.style.left=`${points[i].x}px`;el.style.top=`${points[i].y}px`;});}
+function resetFrame(){
+  const aspect=WIDTH/viewHeight;
+  const w=Math.min(stage.clientWidth*.76,700,Math.max(1,stage.clientHeight-24)*aspect),h=w/aspect;
+  const x=(stage.clientWidth-w)/2,y=(stage.clientHeight-h)/2;
+  points=[{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}];frameAdjusted=false;draw();
+}
+function moveCorner(i,x,y){const next=points.map(p=>({...p}));next[i]={x:Math.max(6,Math.min(stage.clientWidth-6,x)),y:Math.max(6,Math.min(stage.clientHeight-6,y))};if(validQuad(next)){points=next;frameAdjusted=true;draw();}}
+new ResizeObserver(()=>{
+  const width=stage.clientWidth,height=stage.clientHeight;
+  if(!points.length||!stageSize.width||!stageSize.height||!frameAdjusted)resetFrame();
+  else{
+    const scale=Math.min(width/stageSize.width,height/stageSize.height);
+    points=points.map(p=>({x:(p.x-stageSize.width/2)*scale+width/2,y:(p.y-stageSize.height/2)*scale+height/2}));draw();
+  }
+  stageSize={width,height};
+}).observe(stage);
 $('reset').addEventListener('click',resetFrame);
 $('empty').addEventListener('click',()=>$('file-input').click());
 $('open').addEventListener('click',()=>$('file-input').click());
@@ -42,8 +55,8 @@ function updateControls(){
   pageControls.hidden=current?.type!=='pdf'||current.count<2;
   $('hint').hidden=!pageControls.hidden;
   if(current?.type==='pdf'){
-    const first=Math.min(current.count,Math.floor((viewport.scrollTop+1)/(HEIGHT*zoom))+1);
-    const last=Math.min(current.count,Math.ceil((viewport.scrollTop+HEIGHT)/(HEIGHT*zoom)));
+    const first=Math.min(current.count,Math.floor((viewport.scrollTop+1)/(viewHeight*zoom))+1);
+    const last=Math.min(current.count,Math.ceil((viewport.scrollTop+viewHeight)/(viewHeight*zoom)));
     $('page-count').textContent=first===last?`Page ${first} of ${current.count}`:`Pages ${first}–${last} of ${current.count}`;
     $('previous-page').disabled=viewport.scrollTop<=1;
     $('next-page').disabled=viewport.scrollTop>=viewport.scrollHeight-viewport.clientHeight-1;
@@ -51,17 +64,17 @@ function updateControls(){
 }
 function layoutDocument(){
   if(!current)return;
-  const pages=$('pages');pages.style.width=`${WIDTH*zoom}px`;pages.style.height=`${HEIGHT*zoom*current.count}px`;
+  const pages=$('pages');pages.style.width=`${WIDTH*zoom}px`;pages.style.height=`${viewHeight*zoom*current.count}px`;
   pages.style.marginLeft=zoom<1?`${WIDTH*(1-zoom)/2}px`:'0';
-  pages.style.marginTop=zoom<1&&current.count===1?`${HEIGHT*(1-zoom)/2}px`:'0';
-  current.slots.forEach(slot=>{slot.element.style.height=`${HEIGHT*zoom}px`;});
+  pages.style.marginTop=zoom<1&&current.count===1?`${viewHeight*(1-zoom)/2}px`:'0';
+  current.slots.forEach(slot=>{slot.element.style.height=`${viewHeight*zoom}px`;});
 }
-function setZoom(value,anchor={x:WIDTH/2,y:HEIGHT/2}){
+function setZoom(value,anchor={x:WIDTH/2,y:viewHeight/2}){
   if(!current)return;
   const next=Math.max(.25,Math.min(4,value));
   const ratio=next/zoom;
   const offsetX=z=>z<1?WIDTH*(1-z)/2:0;
-  const offsetY=z=>z<1&&current.count===1?HEIGHT*(1-z)/2:0;
+  const offsetY=z=>z<1&&current.count===1?viewHeight*(1-z)/2:0;
   const left=(viewport.scrollLeft+anchor.x-offsetX(zoom))*ratio+offsetX(next)-anchor.x;
   const top=(viewport.scrollTop+anchor.y-offsetY(zoom))*ratio+offsetY(next)-anchor.y;
   zoom=next;layoutDocument();viewport.scrollLeft=left;viewport.scrollTop=top;updateControls();scheduleRender();
@@ -77,7 +90,7 @@ viewport.addEventListener('wheel',e=>{
   setZoom(zoom*Math.exp(-e.deltaY*.004),{x:p.x/p.w,y:p.y/p.w});
 },{passive:false});
 viewport.addEventListener('scroll',()=>{updateControls();scheduleRender();},{passive:true});
-function changePage(delta){if(current?.type!=='pdf')return;const pageHeight=HEIGHT*zoom;const index=delta>0?Math.floor((viewport.scrollTop+1)/pageHeight)+1:Math.ceil((viewport.scrollTop-1)/pageHeight)-1;viewport.scrollTop=Math.max(0,Math.min(current.count-1,index))*pageHeight;}
+function changePage(delta){if(current?.type!=='pdf')return;const pageHeight=viewHeight*zoom;const index=delta>0?Math.floor((viewport.scrollTop+1)/pageHeight)+1:Math.ceil((viewport.scrollTop-1)/pageHeight)-1;viewport.scrollTop=Math.max(0,Math.min(current.count-1,index))*pageHeight;}
 $('previous-page').addEventListener('click',()=>changePage(-1));$('next-page').addEventListener('click',()=>changePage(1));
 
 function dispose(doc){
@@ -85,11 +98,16 @@ function dispose(doc){
   doc.disposed=true;
   for(const slot of doc.slots??[]){slot.task?.cancel();if(slot.canvas){slot.canvas.width=0;slot.canvas.height=0;}}
   if(doc.url)URL.revokeObjectURL(doc.url);
-  if(doc.pdf)void doc.pdf.destroy().catch(()=>{});
+  if(doc.pdf)void doc.pdf.loadingTask.destroy().catch(()=>{});
 }
 function makeSlot(index){const element=document.createElement('div');element.className='page';element.setAttribute('aria-label',`Page ${index+1}`);return {element,canvas:null,task:null,rendering:false,resolution:0};}
+function documentAspect(width,height){
+  const aspect=width/height;
+  if(!Number.isFinite(aspect)||aspect<=0||width<=0||height<=0)throw new Error('The file has invalid page dimensions.');
+  return aspect;
+}
 function commitDocument(doc,name){
-  dispose(current);current=doc;zoom=1;
+  dispose(current);current=doc;zoom=1;viewHeight=WIDTH/doc.aspectRatio;resetFrame();
   $('pages').replaceChildren(...doc.slots.map(s=>s.element));$('pages').style.display='block';$('empty').hidden=true;
   document.body.classList.add('loaded');$('file-name').textContent=name;$('open').title=`Replace ${name}`;
   $('hint').textContent='Drag the corners to reshape';
@@ -97,9 +115,10 @@ function commitDocument(doc,name){
 }
 async function loadImage(file){
   const url=URL.createObjectURL(file),img=new Image();img.alt=file.name;img.draggable=false;img.src=url;
-  try{await img.decode();if(!img.naturalWidth)throw new Error('Invalid image');}
+  let aspectRatio;
+  try{await img.decode();aspectRatio=documentAspect(img.naturalWidth,img.naturalHeight);}
   catch(error){URL.revokeObjectURL(url);throw new Error('This image could not be opened. Try a PNG, JPEG, WebP, or SVG.');}
-  const slot=makeSlot(0);slot.element.append(img);return {type:'image',url,count:1,slots:[slot]};
+  const slot=makeSlot(0);slot.element.append(img);return {type:'image',url,count:1,aspectRatio,slots:[slot]};
 }
 async function loadPdf(file,sequence){
   pdfLibraryPromise??=import('./vendor/pdfjs/build/pdf.min.mjs').catch(error=>{pdfLibraryPromise=null;throw error;});
@@ -113,7 +132,8 @@ async function loadPdf(file,sequence){
   let pdf;
   try{
     pdf=await task.promise;
-    const doc={type:'pdf',pdf,count:pdf.numPages,slots:Array.from({length:pdf.numPages},(_,i)=>makeSlot(i))};
+    const firstPage=await pdf.getPage(1),firstView=firstPage.getViewport({scale:1});
+    const doc={type:'pdf',pdf,count:pdf.numPages,aspectRatio:documentAspect(firstView.width,firstView.height),slots:Array.from({length:pdf.numPages},(_,i)=>makeSlot(i))};
     await renderPage(doc,0,1);
     return doc;
   }catch(error){void task.destroy().catch(()=>{});if(error.name==='PasswordException')throw new Error('This PDF needs a password. Please open an unlocked copy.');throw new Error('This PDF could not be opened. Try another PDF.');}
@@ -170,8 +190,8 @@ function scheduleRender(){
 }
 async function renderVisible(){
   const doc=current;if(doc?.type!=='pdf')return;
-  const first=Math.max(0,Math.floor(viewport.scrollTop/(HEIGHT*zoom))-1);
-  const last=Math.min(doc.count-1,Math.ceil((viewport.scrollTop+HEIGHT)/(HEIGHT*zoom)));
+  const first=Math.max(0,Math.floor(viewport.scrollTop/(viewHeight*zoom))-1);
+  const last=Math.min(doc.count-1,Math.ceil((viewport.scrollTop+viewHeight)/(viewHeight*zoom)));
   doc.slots.forEach((slot,i)=>{if((i<first-1||i>last+1)&&!slot.rendering&&slot.canvas){slot.canvas.remove();slot.canvas.width=0;slot.canvas.height=0;slot.canvas=null;slot.resolution=0;}});
   for(let i=first;i<=last&&current===doc;i++){
     try{await renderPage(doc,i,zoom);}
@@ -200,7 +220,7 @@ if(modelContext?.registerTool){
     if(Object.hasOwn(input,'corners')&&(!Array.isArray(corners)||corners.some(p=>!p||typeof p!=='object'||Object.keys(p).some(k=>!['x','y'].includes(k)))||!validQuad(corners)||corners.some(p=>p.x<6||p.y<6||p.x>stage.clientWidth-6||p.y>stage.clientHeight-6)))throw new Error('Corners must form a convex box inside the workspace.');
     if(value!==undefined&&(!Number.isFinite(value)||value<25||value>400||!current))throw new Error('Open a document and choose a zoom from 25 to 400.');
     if(Object.hasOwn(input,'scroll')&&(!scroll||typeof scroll!=='object'||Object.keys(scroll).some(k=>!['x','y'].includes(k))||!current||!Number.isFinite(scroll.x)||!Number.isFinite(scroll.y)||scroll.x<0||scroll.y<0))throw new Error('Open a document and provide a valid scroll position.');
-    if(corners){points=corners.map(p=>({...p}));draw();}if(value!==undefined)setZoom(value/100);if(scroll){viewport.scrollLeft=scroll.x;viewport.scrollTop=scroll.y;}return snapshot();
+    if(corners){points=corners.map(p=>({...p}));frameAdjusted=true;draw();}if(value!==undefined)setZoom(value/100);if(scroll){viewport.scrollLeft=scroll.x;viewport.scrollTop=scroll.y;}return snapshot();
   }});
   window.addEventListener('pagehide',event=>{if(!event.persisted)lifecycle.abort();});
 }
