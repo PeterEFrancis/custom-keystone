@@ -2,6 +2,8 @@
 
 A small, static perspective viewer. Drag the four corners of the frame, open an image or PDF, then zoom and scroll within the warped viewport. Multi-page PDFs scroll continuously and have previous/next page controls.
 
+[Open Keystone](https://peterefrancis.com/custom-keystone/)
+
 ## Run locally
 
 From this directory:
