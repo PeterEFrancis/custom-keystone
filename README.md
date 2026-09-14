@@ -12,6 +12,10 @@ python3 -m http.server 5173 --directory dist
 
 Open http://localhost:5173. There is no build step. Serve `dist/` with any static host.
 
+## Publishing
+
+The GitHub Pages workflow publishes `dist/` whenever its files change on `main`. It can also be run manually from the repository's Actions tab. GitHub Pages uses **GitHub Actions** as its publishing source.
+
 ## Controls
 
 - Click the empty frame or **Open file**, or drop an image/PDF anywhere.
