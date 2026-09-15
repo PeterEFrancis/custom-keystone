@@ -75,6 +75,7 @@
       <label>Fill order<select id="stitch-order"><option value="row">Across, then down</option><option value="column">Down, then across</option></select></label>
       <h3>Trim page margins <span class="unit-label">in</span></h3><div class="field-row"><label>Top<input id="trim-top" type="number" min="0" step="any" value="0"></label><label>Bottom<input id="trim-bottom" type="number" min="0" step="any" value="0"></label></div><div class="field-row"><label>Left<input id="trim-left" type="number" min="0" step="any" value="0"></label><label>Right<input id="trim-right" type="number" min="0" step="any" value="0"></label></div>
       <h3>Overlap <span class="unit-label">in</span></h3><div class="field-row"><label>Horizontal<input id="overlap-x" type="number" min="0" step="any" value="0"></label><label>Vertical<input id="overlap-y" type="number" min="0" step="any" value="0"></label></div>
+      <p class="field-help">Overlap updates the projection as you type.</p>
       <div id="stitch-preview" class="stitch-preview" aria-label="Stitch layout preview"></div><p id="stitch-summary" class="field-help"></p><p id="stitch-error" class="error" role="alert"></p><button type="submit" class="primary full">Apply stitching</button></form>
       <button id="unstitch" class="subtle full">Return to single pages</button><button id="export-pdf" class="subtle full">Export stitched PDF</button><p class="field-help">Export uses the current pattern scale. Projection colors and rotation are display settings.</p>
     </section>

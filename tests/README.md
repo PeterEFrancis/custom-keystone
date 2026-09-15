@@ -27,6 +27,12 @@ Separate document-renderer checks in Chrome covered a rotated PDF with a 2× PDF
 
 Export-library checks used generated PDFs to verify all four page rotations, a nonzero crop-box origin, tile crops, repeated pages, blank slots, scale changes, and long-page physical dimensions. The resulting vector export was rendered and visually inspected. Raster-fallback checks covered selected layers, reuse of repeated-page resources, canvas release, bounded rendering, and cancellation. These were focused development checks; the scratch fixtures are not part of the automated test suite above.
 
+## Live overlap checks recorded on 2026-09-15
+
+- Editing overlap activated stitching without pressing Apply; subsequent horizontal and vertical edits immediately changed page positions.
+- At 130% scale with rotation and mirroring, the pattern transform and mat calibration stayed fixed as overlap changed. Overview retained its current viewing scale too.
+- Clearing an overlap field or entering excessive overlap preserved the last valid projected layout; correcting the value resumed live updates.
+
 ## Remaining validation
 
 These checks do not establish accuracy on a physical projector or cover every browser/device. With the intended projector, measure the grid and a known test square near the center and edges, then verify scale again after rotation, stitching, and display changes. Confirm the exported PDF's printed dimensions using actual-size printing.

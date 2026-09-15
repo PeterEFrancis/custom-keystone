@@ -178,17 +178,31 @@ function clearCache(){
   for(const entry of cache.values()){entry.canvas.width=0;entry.canvas.height=0;}cache.clear();
   for(const node of tileNodes.values()){for(const canvas of node.querySelectorAll('canvas')){canvas.width=0;canvas.height=0;}node.replaceChildren();node.dataset.renderKey='';}
 }
-function installLayout(next,options,{clearMarks=true}={}){
+function installLayout(next,options,{clearMarks=true,preserveView=false}={}){
+  const previousBounds=preserveView&&layout?bounds():null;
+  // Overlap changes move existing pages; keep their canvases and the view steady.
+  const reuseTiles=preserveView&&layout&&layout.tiles.length===next.tiles.length&&next.tiles.every((tile,index)=>{
+    const previous=layout.tiles[index];
+    return tile.id===previous.id&&tile.pageIndex===previous.pageIndex&&tile.width===previous.width&&tile.height===previous.height&&tile.crop.left===previous.crop.left&&tile.crop.top===previous.crop.top;
+  });
   layout=next;layoutOptions={...options};pageIndex=options.pageIndex??pageIndex;
-  for(const node of tileNodes.values())for(const canvas of node.querySelectorAll('canvas')){canvas.width=0;canvas.height=0;}
-  tileNodes.clear();$('tiles').replaceChildren();
+  if(!reuseTiles){
+    for(const node of tileNodes.values())for(const canvas of node.querySelectorAll('canvas')){canvas.width=0;canvas.height=0;}
+    tileNodes.clear();$('tiles').replaceChildren();
+  }
   for(const tile of layout.tiles){
-    const node=document.createElement('div');node.className='tile';node.style.left=tile.x+'px';node.style.top=tile.y+'px';node.style.width=tile.width+'px';node.style.height=tile.height+'px';
+    const node=reuseTiles?tileNodes.get(tile.id):document.createElement('div');node.className='tile';node.style.left=tile.x+'px';node.style.top=tile.y+'px';node.style.width=tile.width+'px';node.style.height=tile.height+'px';
     node.setAttribute('aria-label',tile.pageIndex<0?'Blank page':'Pattern page '+(tile.pageIndex+1));
-    $('tiles').append(node);tileNodes.set(tile.id,node);
+    if(!reuseTiles){$('tiles').append(node);tileNodes.set(tile.id,node);}
   }
   if(clearMarks){marks=[];selectedMark=-1;draftMark=null;}
-  if(viewMode==='overview')fitOverview();else centerPattern();updateMeasurement();
+  if(previousBounds){
+    const nextBounds=bounds(),dx=nextBounds.minX-previousBounds.minX,dy=nextBounds.minY-previousBounds.minY;
+    pan.x+=dx*effectiveScale();pan.y+=dy*effectiveScale();
+    if(magnifyReturn){magnifyReturn.x+=dx*actualScale();magnifyReturn.y+=dy*actualScale();}
+    drawPattern();
+  }else if(viewMode==='overview')fitOverview();else centerPattern();
+  updateMeasurement();
 }
 async function openFile(file){
   if(!file)return;
@@ -286,7 +300,7 @@ function refreshLayers(){
   $('layers-all').disabled=$('layers-none').disabled=!doc?.layers.length;
 }
 function readStitchOptions(){
-  const mm=id=>Number($(id).value)*unitFactor();
+  const mm=id=>$(id).valueAsNumber*unitFactor();
   return {mode:'stitch',selection:$('page-selection').value,columns:Number($('stitch-columns').value),rows:Number($('stitch-rows').value),order:$('stitch-order').value,trim:{top:mm('trim-top'),right:mm('trim-right'),bottom:mm('trim-bottom'),left:mm('trim-left')},overlapX:mm('overlap-x'),overlapY:mm('overlap-y')};
 }
 function previewStitch(){
@@ -441,6 +455,10 @@ function updateStitchDraft(event){
     if(id==='stitch-columns'||id==='page-selection'){const columns=Number($('stitch-columns').value);if(Number.isSafeInteger(columns)&&columns>0)$('stitch-rows').value=Math.max(1,Math.ceil(count/columns));}
   }catch{}
   previewStitch();
+  if(['overlap-x','overlap-y'].includes(event.target.id)&&stitchDraft&&JSON.stringify(layoutOptions)!==JSON.stringify(stitchDraft.options)){
+    if(exportController){exportController.abort();notify('Overlap changed. Export again with the new layout.');}
+    installLayout(stitchDraft.layout,stitchDraft.options,{preserveView:layoutOptions.mode==='stitch'});
+  }
 }
 $('stitch-form').addEventListener('input',updateStitchDraft);$('stitch-form').addEventListener('change',updateStitchDraft);
 $('stitch-form').addEventListener('submit',event=>{event.preventDefault();previewStitch();if(!stitchDraft)return;installLayout(stitchDraft.layout,stitchDraft.options);notify('Pages stitched at their original scale. Measurement marks have been cleared.');});

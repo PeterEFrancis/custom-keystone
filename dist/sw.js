@@ -2,7 +2,7 @@
  * No skipWaiting: an update never replaces a worker used by an open pattern.
  * Closing the app's old windows lets the waiting version activate for next use.
  */
-const CACHE_VERSION = '2026-09-14-pattern-projector-1';
+const CACHE_VERSION = '2026-09-15-live-overlap-1';
 const CACHE_PREFIX = `keystone-pattern-projector:${self.registration.scope}:`;
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 const APP_FILES = [

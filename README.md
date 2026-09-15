@@ -25,7 +25,7 @@ Measurement marks also support centering, aligning a line horizontally, flipping
 
 ## Stitching, layers, and viewing
 
-- **Stitch:** enter pages in order, including ranges, repeats, `0` for a blank, or `!3` to exclude page 3. Set rows/columns, fill direction, four margin trims, and horizontal/vertical overlap. The applied grid keeps its exact rows × columns, padding unused slots with blanks. Check the preview, then apply.
+- **Stitch:** enter pages in order, including ranges, repeats, `0` for a blank, or `!3` to exclude page 3. Set rows/columns, fill direction, four margin trims, and horizontal/vertical overlap. The applied grid keeps its exact rows × columns, padding unused slots with blanks. Check the preview, then apply. Horizontal and vertical overlap update the projection immediately as you type, preserving its position and scale; incomplete or invalid values leave the last valid layout visible.
 - **Layers:** show or hide available PDF optional-content layers or SVG layers, with show-all/hide-all controls.
 - **View:** original colors, white on black, green on black, line weight, grid/border, center fold lines, and wrong-side dots. Rotate, mirror, center, or reset orientation from the controls.
 - **Export stitched PDF:** saves the stitched layout at the current corrected pattern scale. Print the result at actual size. Projection rotation, flips, colors, line weight, overlays, and measurement marks are viewing tools and are not included.
