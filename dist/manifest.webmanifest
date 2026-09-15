@@ -1,0 +1,60 @@
+{
+  "id": "./",
+  "name": "Keystone Pattern Projector",
+  "short_name": "Keystone",
+  "description": "Calibrate your cutting mat, then project local sewing patterns at their true size.",
+  "lang": "en",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#101419",
+  "theme_color": "#101419",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "file_handlers": [
+    {
+      "action": "./",
+      "name": "Open pattern",
+      "accept": {
+        "application/pdf": [
+          ".pdf"
+        ],
+        "image/svg+xml": [
+          ".svg"
+        ],
+        "image/png": [
+          ".png"
+        ],
+        "image/jpeg": [
+          ".jpg",
+          ".jpeg"
+        ],
+        "image/webp": [
+          ".webp"
+        ],
+        "image/gif": [
+          ".gif"
+        ],
+        "image/avif": [
+          ".avif"
+        ],
+        "image/bmp": [
+          ".bmp"
+        ]
+      }
+    }
+  ]
+}

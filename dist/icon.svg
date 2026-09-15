@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Keystone Pattern Projector</title>
+  <rect width="512" height="512" fill="#101419"/>
+  <path d="M137 160 367 119 351 375 155 349Z" fill="#6de9bd"/>
+  <path d="m181 195 139-25-10 150-116-15Z" fill="#101419"/>
+  <g stroke="#6de9bd" stroke-width="5" fill="none" opacity=".55">
+    <path d="m225 187 9 123m41-132-1 137m-90-79 133-12m-130 54 127-1"/>
+  </g>
+  <g fill="#f3fff9">
+    <circle cx="137" cy="160" r="12"/><circle cx="367" cy="119" r="12"/>
+    <circle cx="351" cy="375" r="12"/><circle cx="155" cy="349" r="12"/>
+  </g>
+</svg>

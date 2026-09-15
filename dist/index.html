@@ -1,24 +1,102 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#fafafa" />
-  <meta name="description" content="Open an image or PDF, shape its perspective, and zoom and scroll inside the frame." />
-  <title>Keystone — shape your view</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%232563eb' d='M5 8 27 3 24 28 8 25Z'/%3E%3Cpath fill='white' d='m10 12 12-3-1 13-10-1Z'/%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="./style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101419">
+  <meta name="description" content="Calibrate your cutting mat, then project sewing patterns at their true size. Stitch pages, adjust layers, and check scale with a known measurement.">
+  <title>Keystone — Pattern Projector</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%236de9bd' d='M5 8 27 3 24 28 8 25Z'/%3E%3Cpath fill='%23101419' d='m10 12 12-3-1 13-10-1Z'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./style.css">
+  <link rel="manifest" href="./manifest.webmanifest">
 </head>
-<body>
-  <header class="header"><a class="brand" href="./" aria-label="Keystone home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 6 16-3-2 18-12-2Z"/></svg>keystone<span> / </span><span>perspective viewer</span></a><span class="top-hint">Your files stay on your device</span></header>
-  <main id="stage" aria-label="Perspective workspace">
-    <div id="frame" class="frame"><div id="viewport" class="viewport" tabindex="0" aria-label="Document. Scroll to move through the document."><div id="pages" class="pages"></div><button id="empty" class="empty"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="5" width="22" height="22" rx="4"/><path d="M16 10v12m-6-6h12"/></svg><strong>Open an image or PDF</strong><span>Click here or drop a file</span></button></div></div>
-    <svg id="outline" class="outline" aria-hidden="true"><polygon id="polygon"/></svg>
-    <div id="handles"></div>
+<body data-mode="calibrate" data-color="normal">
+  <svg class="filter-defs" aria-hidden="true"><defs>
+    <filter id="green-ink" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values=".2126 .7152 .0722 0 0 .2126 .7152 .0722 0 0 .2126 .7152 .0722 0 0 0 0 0 1 0"/><feComponentTransfer><feFuncR type="linear" slope="-.36" intercept=".36"/><feFuncG type="linear" slope="-1" intercept="1"/><feFuncB type="linear" slope="-.64" intercept=".64"/></feComponentTransfer></filter>
+    <filter id="thick-ink" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB"><feMorphology id="ink-radius" operator="erode" radius=".15"/></filter>
+  </defs></svg>
+  <main id="stage" aria-label="Projection workspace" tabindex="0">
+    <div id="frame"><div id="mat-viewport">
+      <div id="pattern-layer"><div id="tiles"></div><svg id="marks" aria-hidden="true"></svg></div>
+      <svg id="grid" aria-hidden="true"></svg>
+      <svg id="overlays" aria-hidden="true"></svg>
+    </div></div>
+    <svg id="outline" aria-hidden="true"><polygon id="polygon"/></svg>
+    <div id="handles" aria-label="Calibration corners"></div>
   </main>
+  <header id="topbar" class="chrome topbar">
+    <a class="brand" href="#/calibrate" aria-label="Keystone calibration"><svg viewBox="0 0 24 24"><path d="m4 6 16-3-2 18-12-2Z"/></svg><span>keystone<small>Pattern projector</small></span></a>
+    <nav class="steps" aria-label="Workflow"><button id="calibrate-nav" aria-current="step"><span>1</span> Calibrate</button><i></i><button id="project-nav"><span>2</span> Project</button></nav>
+    <div class="global-actions"><button id="help-button" class="icon-button" aria-label="Help and keyboard shortcuts" title="Help">?</button><button id="fullscreen" class="icon-button" aria-label="Enter fullscreen" title="Fullscreen (F)"><svg viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button><button id="hide-menu" class="icon-button" aria-label="Hide controls" title="Hide controls (Tab)"><svg viewBox="0 0 24 24"><path d="m6 14 6-6 6 6"/></svg></button></div>
+  </header>
+  <div id="display-warning" class="banner chrome" role="status" hidden>Display changed. Check your calibration before projecting.</div>
+  <aside id="calibration-panel" class="panel chrome">
+    <div class="eyebrow">STEP 1 · SET UP YOUR MAT</div><h1>A perfect fit.</h1><p>Match the projected grid to a measured rectangle on your cutting mat.</p>
+    <form id="calibration-form">
+      <div class="field-row"><label>Width<input id="mat-width" type="number" min="1" max="300" step="any" value="24" required></label><label>Height<input id="mat-height" type="number" min="1" max="300" step="any" value="16" required></label><label class="unit-field">Units<select id="units"><option value="in">in</option><option value="cm">cm</option></select></label></div>
+      <p class="field-help">Use the measured grid area, which can be smaller than your mat.</p>
+      <div class="divider"></div>
+      <label>Adjust a corner<select id="selected-corner"><option value="0">Top left</option><option value="1">Top right</option><option value="2">Bottom right</option><option value="3">Bottom left</option></select></label>
+      <div class="nudge-controls"><button type="button" data-nudge="-1,0" aria-label="Nudge corner left">←</button><button type="button" data-nudge="0,-1" aria-label="Nudge corner up">↑</button><button type="button" data-nudge="0,1" aria-label="Nudge corner down">↓</button><button type="button" data-nudge="1,0" aria-label="Nudge corner right">→</button><button id="next-corner" type="button" title="Select next corner">Next</button></div>
+      <p class="field-help">Drag any corner. Hide controls for a clear view. Arrow keys move precisely; Shift moves farther.</p>
+      <button id="reset-calibration" type="button" class="subtle full">Reset rectangle</button>
+      <div class="divider"></div>
+      <p id="calibration-status" class="status-copy">Calibration stays fixed when you open a pattern.</p>
+    </form>
+    <button class="primary full" type="submit" form="calibration-form">Continue to pattern <span>→</span></button>
+  </aside>
+  <section id="project-empty" class="empty-state chrome" hidden>
+    <div class="empty-symbol"><svg viewBox="0 0 32 32"><path d="M9 3h10l6 6v20H9zM19 3v7h6M17 15v8m-4-4h8"/></svg></div>
+    <div class="eyebrow">STEP 2 · OPEN YOUR PATTERN</div><h1>Your mat is ready.</h1><p>Open a PDF, SVG, or image.<br>Your calibration stays exactly where you set it.</p><button id="open-empty" class="primary">Open pattern</button><span class="field-help">Or drop a file anywhere · Files stay on this device</span>
+  </section>
+  <div id="projection-toolbar" class="chrome projection-toolbar" hidden>
+    <button id="open" class="file-button" title="Open another pattern (Ctrl/⌘ O)"><svg viewBox="0 0 24 24"><path d="M3 7V4h7l3 3h8v13H3Z"/></svg><span id="file-name">Open pattern</span></button>
+    <div class="tool-divider"></div>
+    <button id="pan-tool" class="tool-button" aria-pressed="true" title="Drag pattern (P)">Move</button><button id="measure-tool" class="tool-button" title="Draw a measurement (L)">Measure</button>
+    <button id="rotate" class="icon-button" aria-label="Rotate pattern 90 degrees" title="Rotate 90° (R)">↻</button><button id="flip-h" class="icon-button" aria-label="Flip pattern horizontally" title="Flip horizontally (H)">↔</button><button id="flip-v" class="icon-button" aria-label="Flip pattern vertically" title="Flip vertically (V)">↕</button>
+    <button id="center" class="tool-button" title="Center pattern (C)">Center</button>
+    <div class="tool-divider"></div><button id="invert" class="tool-button" title="Cycle projection colors (I)">Colors <span id="color-name">Original</span></button>
+    <button id="view-panel-button" class="tool-button" data-panel="view">View</button><button id="stitch-panel-button" class="tool-button" data-panel="stitch">Stitch</button><button id="layers-panel-button" class="tool-button" data-panel="layers">Layers</button><button id="scale-panel-button" class="tool-button" data-panel="scale">Scale</button>
+  </div>
+  <aside id="tool-panel" class="panel chrome project-panel" hidden>
+    <div class="panel-heading"><h2 id="panel-title">View</h2><button id="close-panel" class="icon-button" aria-label="Close tools panel">×</button></div>
+    <section id="panel-view" class="panel-section" hidden>
+      <label>Projection colors<select id="colors"><option value="normal">Original colors</option><option value="white">White on black</option><option value="green">Green on black</option></select></label>
+      <label>Line weight<select id="line-weight"><option value="0">Original</option><option value="0.12">Medium</option><option value="0.25">Bold</option></select></label>
+      <div class="divider"></div><h3>Overlays</h3>
+      <label class="check"><input id="show-grid" type="checkbox"> Calibration grid</label><label class="check"><input id="show-border" type="checkbox" checked> Mat border</label><label class="check"><input id="show-fold" type="checkbox"> Center fold lines</label><label class="check"><input id="show-wrong-side" type="checkbox"> Wrong-side dots</label>
+      <label>Size-check overlay<select id="test-shape"><option value="none">None</option><option value="square">Test square</option><option value="line">Test length</option><option value="a4">A4 paper</option><option value="letter">US Letter paper</option></select></label><label id="test-size-label" hidden>Size <span class="unit-label">in</span><input id="test-size" type="number" min="0.1" step="any" value="4"></label><p class="field-help">These overlays use your mat calibration, independent of the pattern scale.</p>
+      <button id="reset-orientation" class="subtle full">Reset rotation and flips</button>
+    </section>
+    <section id="panel-stitch" class="panel-section" hidden>
+      <p>Join tiled pattern pages into one continuous pattern.</p>
+      <form id="stitch-form"><label>Pages in order<input id="page-selection" type="text" placeholder="1-6, 8, 0, 7" autocomplete="off"></label><p class="field-help">Ranges, repeats, and 0 for a blank. Use !3 to exclude page 3.</p>
+      <div class="field-row"><label>Columns<input id="stitch-columns" type="number" min="1" max="2000" step="1" value="2" required></label><label>Rows<input id="stitch-rows" type="number" min="1" max="2000" step="1" value="1" required></label></div>
+      <label>Fill order<select id="stitch-order"><option value="row">Across, then down</option><option value="column">Down, then across</option></select></label>
+      <h3>Trim page margins <span class="unit-label">in</span></h3><div class="field-row"><label>Top<input id="trim-top" type="number" min="0" step="any" value="0"></label><label>Bottom<input id="trim-bottom" type="number" min="0" step="any" value="0"></label></div><div class="field-row"><label>Left<input id="trim-left" type="number" min="0" step="any" value="0"></label><label>Right<input id="trim-right" type="number" min="0" step="any" value="0"></label></div>
+      <h3>Overlap <span class="unit-label">in</span></h3><div class="field-row"><label>Horizontal<input id="overlap-x" type="number" min="0" step="any" value="0"></label><label>Vertical<input id="overlap-y" type="number" min="0" step="any" value="0"></label></div>
+      <div id="stitch-preview" class="stitch-preview" aria-label="Stitch layout preview"></div><p id="stitch-summary" class="field-help"></p><p id="stitch-error" class="error" role="alert"></p><button type="submit" class="primary full">Apply stitching</button></form>
+      <button id="unstitch" class="subtle full">Return to single pages</button><button id="export-pdf" class="subtle full">Export stitched PDF</button><p class="field-help">Export uses the current pattern scale. Projection colors and rotation are display settings.</p>
+    </section>
+    <section id="panel-layers" class="panel-section" hidden><p>Show just the sizes and markings you need.</p><div class="field-row"><button id="layers-all" class="subtle">Show all</button><button id="layers-none" class="subtle">Hide all</button></div><div id="layers-list"></div></section>
+    <section id="panel-scale" class="panel-section" hidden>
+      <label>Pattern scale (%)<input id="pattern-scale" type="number" min="1" max="1000" step="any" value="100"></label><button id="actual-size" class="subtle full">Reset to 100%</button>
+      <div id="image-size-section" hidden><div class="divider"></div><label>Image width <span class="unit-label">in</span><input id="image-width" type="number" min="0.01" step="any"></label><p id="image-size-help" class="field-help">Set a known width or use the measurement tool below to establish the image’s physical size.</p></div>
+      <div class="divider"></div><h3>Correct scale from a known size</h3><p>Draw over a printed test line or square in your pattern. Enter the size it should be.</p><div class="field-row"><button id="draw-line" class="subtle">Draw a line</button><button id="draw-square" class="subtle">Draw a square</button></div>
+      <p id="measurement-readout" class="measurement-readout">No measurement selected</p><label>Intended length / side <span class="unit-label">in</span><input id="known-length" type="number" min="0.01" step="any" value="4"></label><button id="apply-measurement" class="primary full" disabled>Apply measured scale</button><p id="measurement-error" class="error" role="alert"></p>
+      <div id="mark-actions" hidden><div class="divider"></div><h3>Selected mark</h3><div class="field-row"><button id="previous-mark" class="subtle">Previous</button><button id="next-mark" class="subtle">Next</button></div><button id="align-mark" class="subtle full">Align line horizontally</button><button id="center-mark" class="subtle full">Center on mark</button><button id="flip-mark" class="subtle full">Flip along line</button><button id="move-mark" class="subtle full">Move by line length</button><button id="delete-mark" class="subtle full">Delete mark</button></div>
+    </section>
+  </aside>
+  <footer id="bottom-bar" class="chrome bottom-bar">
+    <span id="workspace-hint">Drag the four corners to match your mat</span>
+    <div id="document-navigation" class="document-navigation" hidden><button id="previous-page" class="icon-button" aria-label="Previous page">‹</button><label class="sr-only" for="page-number">Page number</label><input id="page-number" type="number" min="1" value="1"><span id="page-count">/ 1</span><button id="next-page" class="icon-button" aria-label="Next page">›</button><select id="layout-mode" aria-label="Page layout"><option value="single">Single page</option><option value="continuous">Continuous</option><option value="stitch" disabled>Stitched</option></select></div>
+    <div id="view-controls" class="view-controls" hidden><button id="zoom-out" class="icon-button" aria-label="Decrease pattern scale">−</button><output id="scale-status">100%</output><button id="zoom-in" class="icon-button" aria-label="Increase pattern scale">+</button><button id="overview" class="tool-button" title="Overview / actual size (Z)">Overview</button><button id="magnify" class="tool-button" title="Click a point to magnify (M)">Magnify</button></div>
+  </footer>
+  <button id="show-menu" class="restore-button" hidden>Show controls <kbd>Tab</kbd></button>
   <p id="notice" class="notice" role="status" aria-live="polite"></p>
-  <footer class="footer"><p id="hint" class="hint">Drag the corners to shape your frame</p><div class="toolbar" role="toolbar" aria-label="Document controls"><button id="open" class="file-button" title="Open image or PDF"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v2M3 7h15a2 2 0 0 1 2 2l-2 10H3L1 9a2 2 0 0 1 2-2Z"/></svg><span id="file-name">Open file</span></button><span class="divider"></span><button id="zoom-out" class="icon-button" aria-label="Zoom out" title="Zoom out" disabled>−</button><output id="zoom-value" aria-label="Zoom level">100%</output><button id="zoom-in" class="icon-button" aria-label="Zoom in" title="Zoom in" disabled>+</button><button id="fit" class="text-button" disabled>Fit</button><span class="divider"></span><button id="reset" class="reset-button" title="Reset the four corners"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1 7M4 4v6h6"/></svg><span>Reset frame</span></button></div><p class="key-hint">Scroll to move <span>·</span> Ctrl / ⌘ + scroll to zoom</p></footer>
-  <input id="file-input" type="file" accept="application/pdf,image/*" hidden />
+  <input id="file-input" type="file" accept="application/pdf,image/*,.svg" hidden>
+  <dialog id="help-dialog"><div class="panel-heading"><h2>From grid to fabric</h2><button id="close-help" class="icon-button" aria-label="Close help">×</button></div><ol><li>Enter the width and height of a measured area on your mat.</li><li>Enter fullscreen first, then drag the projected grid corners to match that area.</li><li>Choose <strong>Continue to pattern</strong> and open a file. PDFs use their native print size.</li><li>Use Stitch for tiled PDFs, Layers for pattern sizes, and Scale to check a known test line or square.</li></ol><p>Moving the projector, changing browser zoom, or changing displays can affect calibration. Use the grid or a size-check overlay to verify alignment.</p><div class="shortcut-list"><span>Move <kbd>P</kbd></span><span>Measure <kbd>L</kbd></span><span>Rotate <kbd>R</kbd></span><span>Flip <kbd>H</kbd> / <kbd>V</kbd></span><span>Colors <kbd>I</kbd></span><span>Center <kbd>C</kbd></span><span>Overview <kbd>Z</kbd></span><span>Magnify <kbd>M</kbd></span><span>Fullscreen <kbd>F</kbd></span><span>Controls <kbd>Tab</kbd></span></div><p class="field-help">Inspired by <a href="https://www.patternprojector.com/en" target="_blank" rel="noopener noreferrer">Pattern Projector</a>. Files are processed locally and are never uploaded.</p></dialog>
+  <dialog id="password-dialog"><form method="dialog"><h2>Unlock PDF</h2><p id="password-help">Enter this PDF’s password.</p><label>Password<input id="pdf-password" type="password" autocomplete="off"></label><div class="field-row"><button value="cancel" class="subtle">Cancel</button><button value="unlock" class="primary">Open PDF</button></div></form></dialog>
   <script type="module" src="./app.js"></script>
 </body>
 </html>

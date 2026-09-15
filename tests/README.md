@@ -1,0 +1,34 @@
+# Validation notes
+
+## Automated checks
+
+Run from the repository root with Node.js 24 or newer:
+
+```sh
+node --test tests/*.test.mjs
+```
+
+`pattern-layout.test.mjs` covers page selection, ordering, duplicates, exclusions, blank slots, trimming, overlap, explicit grid dimensions, visibility, and measurement-scale calculations. `projector-math.test.mjs` covers physical dimensions, orientation bounds, rotation/reflection, projection coordinates, and inverse mappings.
+
+## Browser checks recorded on 2026-09-14
+
+The local development build was exercised interactively in a browser. The following outcomes were observed:
+
+- Calibration preceded file opening, and the projection tools operated within a skewed calibration grid.
+- Selecting an 80 mm test square and entering a 4 in intended side produced 127% pattern scale: `101.6 / 80 = 1.27`.
+- A 40 mm test line corrected back to native 100% scale after calibration skew and a 90° pattern rotation.
+- SVG layer visibility changes worked with the green-on-black projection filter.
+- An eight-slot stitched layout was applied, and **Export stitched PDF** completed a download. Its single page measured 408.0933 × 564.4444 mm, matching the layout.
+- Scrolling, mark alignment/reflection, and rotated overview preserved the calibrated corners. Page Down preserved stitching. A damaged replacement file left the current pattern intact.
+- A 390 × 844 viewport triggered recalibration, rejected off-screen corners, and supported reset and confirmation.
+- Optional WebMCP read/set controls were exercised for calibration corners and state inspection.
+
+Separate document-renderer checks in Chrome covered a rotated PDF with a 2× PDF `UserUnit`, default and changed PDF layer visibility, source-byte access, and bounded page rendering.
+
+Export-library checks used generated PDFs to verify all four page rotations, a nonzero crop-box origin, tile crops, repeated pages, blank slots, scale changes, and long-page physical dimensions. The resulting vector export was rendered and visually inspected. Raster-fallback checks covered selected layers, reuse of repeated-page resources, canvas release, bounded rendering, and cancellation. These were focused development checks; the scratch fixtures are not part of the automated test suite above.
+
+## Remaining validation
+
+These checks do not establish accuracy on a physical projector or cover every browser/device. With the intended projector, measure the grid and a known test square near the center and edges, then verify scale again after rotation, stitching, and display changes. Confirm the exported PDF's printed dimensions using actual-size printing.
+
+Installed-app file launching and production offline/cache updates are not claimed as end-to-end browser checks in this record. Fullscreen behavior, touch input, and rendering on additional browsers/devices also need their own checks.
