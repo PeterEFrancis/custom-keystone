@@ -2,7 +2,7 @@
  * No skipWaiting: an update never replaces a worker used by an open pattern.
  * Closing the app's old windows lets the waiting version activate for next use.
  */
-const CACHE_VERSION = '2026-09-15-undo-redo-1';
+const CACHE_VERSION = '2026-09-15-thin-lines-1';
 const CACHE_PREFIX = `keystone-pattern-projector:${self.registration.scope}:`;
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 const APP_FILES = [
@@ -12,6 +12,7 @@ const APP_FILES = [
   "history.js",
   "geometry.js",
   "projector-math.js",
+  "raster-resolution.js",
   "pattern-layout.js",
   "document-source.js",
   "export-pattern.js",

@@ -1,8 +1,8 @@
 // Local document decoding. The caller owns canvas caching and render scheduling.
+import { boundedPixels } from './raster-resolution.js';
+
 const MM_PER_POINT = 25.4 / 72;
 const MM_PER_PIXEL = 25.4 / 96;
-const MAX_PIXELS = 8_000_000;
-const MAX_AXIS = 8192;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 let pdfLibraryPromise;
 
@@ -40,16 +40,6 @@ function dimensions(width, height) {
     throw new Error('This file has invalid page dimensions.');
   }
   return { widthMm: width, heightMm: height };
-}
-
-function boundedPixels(width, height) {
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-    throw new Error('The requested render size is invalid.');
-  }
-  let scale = Math.min(1, MAX_AXIS / width, MAX_AXIS / height);
-  const area = (width * scale) * (height * scale);
-  if (area > MAX_PIXELS) scale *= Math.sqrt(MAX_PIXELS / area);
-  return { width: Math.max(1, Math.floor(width * scale)), height: Math.max(1, Math.floor(height * scale)) };
 }
 
 function canvasFor(width, height) {
@@ -166,6 +156,10 @@ async function loadPdf(file, { signal: externalSignal, onProgress, onPassword })
       physicalScaleKnown: true,
       get layersModified() { return !optionalContent.hasInitialVisibility; },
       async copyBytes() { return new Uint8Array(await readBlob(file, signal)); },
+      getRenderSize(index, { pixelsPerMm = 4 } = {}) {
+        validateRender(index, pages.length, pixelsPerMm, signal);
+        return boundedPixels(pages[index].widthMm * pixelsPerMm, pages[index].heightMm * pixelsPerMm);
+      },
       setLayerVisible(id, visible) {
         checkSignals(signal);
         if (!optionalContent.getGroup(String(id))) return false;
@@ -176,11 +170,11 @@ async function loadPdf(file, { signal: externalSignal, onProgress, onPassword })
       },
       async renderPage(index, { pixelsPerMm = 4, signal: renderSignal } = {}) {
         validateRender(index, pages.length, pixelsPerMm, signal, renderSignal);
+        const size = source.getRenderSize(index, { pixelsPerMm });
         let canvas, page, renderTask;
         try {
           page = await abortable(pdf.getPage(index + 1), [signal, renderSignal]);
           const base = page.getViewport({ scale: 1 });
-          const size = boundedPixels(pages[index].widthMm * pixelsPerMm, pages[index].heightMm * pixelsPerMm);
           const scale = Math.min(size.width / base.width, size.height / base.height);
           const viewport = page.getViewport({ scale });
           const target = canvasFor(size.width, size.height);
@@ -357,6 +351,12 @@ async function loadImage(file, { signal: externalSignal, onProgress }, isSvg) {
       pages, pixelWidth, pixelHeight, layers, physicalScaleKnown: svg?.physicalScaleKnown || false,
       get layersModified() { return layers.some((layer, index) => layer.visible !== initialVisibility[index]); },
       async copyBytes() { return new Uint8Array(await readBlob(file, signal)); },
+      getRenderSize(index, { pixelsPerMm = 4 } = {}) {
+        validateRender(index, 1, pixelsPerMm, signal);
+        // SVG stays resolution independent; raster images retain their native cap.
+        return boundedPixels(pages[0].widthMm * pixelsPerMm, pages[0].heightMm * pixelsPerMm,
+          svg ? undefined : { maxWidth: pixelWidth, maxHeight: pixelHeight });
+      },
       setLayerVisible(id, visible) {
         checkSignals(signal);
         const index = layers.findIndex(layer => layer.id === String(id));
@@ -369,10 +369,7 @@ async function loadImage(file, { signal: externalSignal, onProgress }, isSvg) {
       },
       async renderPage(index, { pixelsPerMm = 4, signal: renderSignal } = {}) {
         validateRender(index, 1, pixelsPerMm, signal, renderSignal);
-        let width = pages[0].widthMm * pixelsPerMm, height = pages[0].heightMm * pixelsPerMm;
-        // Upsampling a raster cannot reveal additional detail. SVG stays resolution independent.
-        if (!svg) { const scale = Math.min(1, pixelWidth / width, pixelHeight / height); width *= scale; height *= scale; }
-        const size = boundedPixels(width, height);
+        const size = source.getRenderSize(index, { pixelsPerMm });
         let renderImage = image, url, canvas;
         try {
           if (svg) {
@@ -385,6 +382,8 @@ async function loadImage(file, { signal: externalSignal, onProgress }, isSvg) {
           checkSignals(signal, renderSignal);
           const target = canvasFor(size.width, size.height);
           canvas = target.canvas;
+          target.context.imageSmoothingEnabled = true;
+          target.context.imageSmoothingQuality = 'high';
           target.context.drawImage(renderImage, 0, 0, size.width, size.height);
           checkSignals(signal, renderSignal);
           return canvas;

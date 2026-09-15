@@ -10,6 +10,8 @@ node --test tests/*.test.mjs
 
 `pattern-layout.test.mjs` covers page selection, ordering, duplicates, exclusions, blank slots, trimming, overlap, explicit grid dimensions, visibility, and measurement-scale calculations. `projector-math.test.mjs` covers physical dimensions, orientation bounds, rotation/reflection, projection coordinates, and inverse mappings. `history.test.mjs` covers independent snapshots, grouped gestures, undo/redo branching, history limits, cancellation, no-op edits, rollback, and restoration failures.
 
+`raster-resolution.test.mjs` covers zoom reversal, very small viewing scales, resolution hysteresis, pixel/axis/native-image limits, and stable capped dimensions across zoom buckets. The complete suite contains 53 checks.
+
 ## Browser checks recorded on 2026-09-14
 
 The local development build was exercised interactively in a browser. The following outcomes were observed:
@@ -44,6 +46,22 @@ Export-library checks used generated PDFs to verify all four page rotations, a n
 - The header, including Undo/Redo, fit a 320 px-wide viewport. The measurement Previous/Next row has 12 px of space below it before the action buttons.
 
 These are observed checks in the development browser session, not a claim that every control combination or browser has been tested. Keyboard handling preserves native text undo inside inputs; application history is available from the header buttons.
+
+## Thin-line rendering checks recorded on 2026-09-15
+
+- Reproduced missing line sections in the previous renderer after 1000% → 100% zoom: the retained PDF canvas stayed at 2828 × 2828 pixels.
+- The updated renderer replaced it with an 846 × 846 canvas at the same calibrated size. The synthetic thin lines remained continuous in the same skewed frame.
+- At 63% with fractional panning, four stitched tiles (including a repeated page) rendered at 503 × 503 each. White-on-black and green-on-black Overview were visually checked, without the previous missing sections.
+- Calibration corners, native PDF page dimensions, and physical pattern scale remained unchanged by resolution updates.
+- SVG zoom reversal changed its backing canvas from 3200 × 2400 to 800 × 600; layer changes and Undo still restored visibility. A PNG stayed at its native 1200 × 800 maximum, then downsampled to 317 × 211 at 25%. No browser warnings or errors were recorded.
+
+For thin-line rendering regression checks, open `fixtures/thin-lines.pdf`: three
+synthetic pages containing zero-width PDF hairlines, 0.01–0.25 pt colored strokes,
+slightly slanted lines, and small text. Calibrate a skewed frame, zoom to 1000%,
+then return to 100%, 63%, and Overview. Lines should remain continuous after each
+replacement render. Repeat with fractional panning, stitched pages, and inverted
+colors. The original renderer retained its largest bitmap after zooming out,
+causing long sections of these lines to vanish.
 
 ## Remaining validation
 

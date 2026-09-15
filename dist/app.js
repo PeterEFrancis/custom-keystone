@@ -3,6 +3,7 @@ import { buildPatternLayout, parsePageSelection, visibleTiles, measurementScale 
 import { orientationBounds, projectPoint, unprojectPoint, composeOrientation, rotationOrientation, reflectionOrientation, calibratedPixelsPerMm } from './projector-math.js';
 import { loadDocument } from './document-source.js';
 import { createHistory } from './history.js';
+import { chooseRasterDensity } from './raster-resolution.js';
 
 const $ = id => document.getElementById(id);
 const stage = $('stage'), frame = $('frame'), patternLayer = $('pattern-layer');
@@ -15,7 +16,7 @@ let imageSizeConfirmed = false, pendingLaunchFile = null, exportController = nul
 let viewMode = 'actual', overviewScale = 1, tool = 'pan', selectedCorner = 0, activePanel = null;
 let marks = [], selectedMark = -1, draftMark = null, drag = null, color = 'normal';
 let loadController = null, renderController = new AbortController(), loadVersion = 0, renderVersion = 0;
-let renderRunning = false, renderDirty = false, cache = new Map(), tileNodes = new Map(), noticeTimer, resizeTimer;
+let renderRunning = false, renderDirty = false, rasterDensity, cache = new Map(), tileNodes = new Map(), noticeTimer, resizeTimer;
 let displayWarning = false, lastDisplay = displaySignature(), magnifyReturn = null, stitchDraft = null;
 const physicalControls=['test-size','known-length','image-width','trim-top','trim-bottom','trim-left','trim-right','overlap-x','overlap-y'];
 const historyControls=[...physicalControls,'page-selection','stitch-columns','stitch-rows','stitch-order','line-weight','show-grid','show-border','show-fold','show-wrong-side','test-shape'];
@@ -306,20 +307,29 @@ async function renderVisible(){
   const visible=visibleTiles(currentLayout,{x:minX,y:minY,width:Math.max(...corners.map(p=>p.x))-minX,height:Math.max(...corners.map(p=>p.y))-minY},12/effectiveScale());
   const visibleIds=new Set(visible.map(tile=>tile.id));
   for(const [id,node] of tileNodes){if(!visibleIds.has(id)&&node.childElementCount){for(const canvas of node.querySelectorAll('canvas')){canvas.width=0;canvas.height=0;}node.replaceChildren();node.dataset.renderKey='';}}
-  const desired=Math.max(.2,Math.min(16,Math.ceil(effectiveScale()*calibratedPixelsPerMm(calibration.corners,calibration.widthMm,calibration.heightMm)*Math.min(devicePixelRatio||1,2)*2)/2));
+  rasterDensity=chooseRasterDensity(effectiveScale()*calibratedPixelsPerMm(calibration.corners,calibration.widthMm,calibration.heightMm)*Math.min(devicePixelRatio||1,2),rasterDensity);
+  const desired=rasterDensity;
   for(const tile of visible){
     if(source!==doc||currentLayout!==layout||signal.aborted||mode!=='project')break;
     if(tile.pageIndex<0)continue;
+    const size=source.getRenderSize(tile.pageIndex,{pixelsPerMm:desired});
+    const node=tileNodes.get(tile.id),key=version+':'+tile.pageIndex+':'+size.width+'x'+size.height;
     let entry=cache.get(tile.pageIndex);
-    if(!entry||entry.density<desired||entry.version!==version){
+    // A displayed tile can outlive the source cache's memory budget. Panning an
+    // overview shouldn't render those pages again when their pixels still match.
+    if(node?.dataset.renderKey===key){if(entry)entry.last=performance.now();continue;}
+    // Re-render vectors in BOTH zoom directions. PDF hairlines have a one-raster-
+    // pixel minimum; shrinking an old high-resolution canvas makes them disappear.
+    // Compare bounded sizes so a page at its memory/native limit stays cached.
+    if(!entry||entry.canvas.width!==size.width||entry.canvas.height!==size.height||entry.version!==version){
       let canvas;
       try{canvas=await source.renderPage(tile.pageIndex,{pixelsPerMm:desired,signal});}
       catch(error){if(error.name==='AbortError'||source!==doc)break;notify('Page '+(tile.pageIndex+1)+' could not be displayed.',true);continue;}
       if(source!==doc||currentLayout!==layout||version!==renderVersion||signal.aborted){canvas.width=0;canvas.height=0;break;}
       if(entry){entry.canvas.width=0;entry.canvas.height=0;}
-      entry={canvas,density:desired,version,last:performance.now()};cache.set(tile.pageIndex,entry);
+      entry={canvas,version,last:performance.now()};cache.set(tile.pageIndex,entry);
     }
-    entry.last=performance.now();const node=tileNodes.get(tile.id),key=version+':'+tile.pageIndex+':'+entry.density;
+    entry.last=performance.now();
     if(node&&node.dataset.renderKey!==key){
       for(const old of node.querySelectorAll('canvas')){old.width=0;old.height=0;}
       const canvas=document.createElement('canvas');canvas.width=entry.canvas.width;canvas.height=entry.canvas.height;canvas.getContext('2d').drawImage(entry.canvas,0,0);

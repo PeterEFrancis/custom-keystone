@@ -32,6 +32,8 @@ Measurement marks also support centering, aligning a line horizontally, flipping
 
 Ordinary PDF exports retain vector lines and text. Images, SVGs, and PDFs requiring layer or annotation rendering use separate raster tiles, preserving visible layers while flattening them. Large rendered pages may have reduced resolution to keep memory use bounded; export does not create one enormous bitmap.
 
+Projection pages redraw at the current viewing resolution when zooming in or out. This preserves PDF hairlines that can disappear when an oversized cached bitmap is shrunk. Small scale changes share a nearby resolution to avoid constant redrawing; the current page stays visible while its replacement renders.
+
 ## Controls
 
 | Action | Shortcut |
@@ -68,7 +70,7 @@ python3 -m http.server 5173 --directory dist
 
 Open [localhost:5173](http://localhost:5173). There is no build step or backend. Files are processed locally and are never uploaded; reloading clears the open document. Password-protected PDFs prompt for a password. Available raster formats depend on the browser.
 
-Run the history, layout, and projection math checks with Node.js 24 or newer:
+Run the history, layout, projection math, and raster resolution checks with Node.js 24 or newer:
 
 ```sh
 node --test tests/*.test.mjs
