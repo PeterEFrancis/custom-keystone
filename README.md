@@ -21,7 +21,7 @@ In **Scale**, choose **Draw a line** or **Draw a square**, trace a known feature
 
 The percentage controls change the actual projected pattern size from 1% to 1000%. **Overview** and **Magnify** are temporary inspection views; return from them before cutting. Size-check overlays always follow mat calibration, independently of pattern scale.
 
-Measurement marks also support centering, aligning a line horizontally, flipping along a line, moving by its length, and previous/next navigation. Changing the page layout clears marks so they cannot point to the wrong pattern pieces.
+Measurement marks also support centering, aligning a line horizontally, flipping along a line, moving by its length, and previous/next navigation. The crosshair stays visible during drawing, and the measurement tool remains active afterward; choose **Move** (P) or Escape to stop measuring. Changing the page layout clears marks so they cannot point to the wrong pattern pieces; Undo restores the previous layout and marks together.
 
 ## Stitching, layers, and viewing
 
@@ -36,6 +36,8 @@ Ordinary PDF exports retain vector lines and text. Images, SVGs, and PDFs requir
 
 | Action | Shortcut |
 | --- | --- |
+| Undo | Ctrl/Command + Z |
+| Redo | Ctrl/Command + Shift + Z, or Ctrl/Command + Y |
 | Move / measure | P / L |
 | Rotate / flip horizontally or vertically | R / H / V |
 | Center / cycle colors | C / I |
@@ -47,6 +49,8 @@ Ordinary PDF exports retain vector lines and text. Images, SVGs, and PDFs requir
 | Previous/next page | Page Up / Page Down |
 
 Scroll to pan; Shift + scroll pans horizontally. Ctrl/Command + scroll changes pattern scale around the pointer. Arrow keys nudge the selected calibration corner or pan the pattern; Shift moves farther. Escape restores controls and leaves the active drawing tool.
+
+The header's Undo/Redo buttons work in both steps, with separate histories for calibration and the current pattern, each keeping up to 100 changes. A drag, scroll burst, held movement/scale key, or typing sequence in a stitch field is grouped into one step. While typing in an input, the keyboard shortcuts retain the browser's normal text undo; use the header buttons for an application-level undo. Opening another file clears pattern history, while a display change clears both histories. History lasts for the current session.
 
 ## Install and offline use
 
@@ -64,7 +68,7 @@ python3 -m http.server 5173 --directory dist
 
 Open [localhost:5173](http://localhost:5173). There is no build step or backend. Files are processed locally and are never uploaded; reloading clears the open document. Password-protected PDFs prompt for a password. Available raster formats depend on the browser.
 
-Run the layout and projection math checks with Node.js 24 or newer:
+Run the history, layout, and projection math checks with Node.js 24 or newer:
 
 ```sh
 node --test tests/*.test.mjs

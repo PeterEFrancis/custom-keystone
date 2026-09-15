@@ -8,7 +8,7 @@ Run from the repository root with Node.js 24 or newer:
 node --test tests/*.test.mjs
 ```
 
-`pattern-layout.test.mjs` covers page selection, ordering, duplicates, exclusions, blank slots, trimming, overlap, explicit grid dimensions, visibility, and measurement-scale calculations. `projector-math.test.mjs` covers physical dimensions, orientation bounds, rotation/reflection, projection coordinates, and inverse mappings.
+`pattern-layout.test.mjs` covers page selection, ordering, duplicates, exclusions, blank slots, trimming, overlap, explicit grid dimensions, visibility, and measurement-scale calculations. `projector-math.test.mjs` covers physical dimensions, orientation bounds, rotation/reflection, projection coordinates, and inverse mappings. `history.test.mjs` covers independent snapshots, grouped gestures, undo/redo branching, history limits, cancellation, no-op edits, rollback, and restoration failures.
 
 ## Browser checks recorded on 2026-09-14
 
@@ -32,6 +32,18 @@ Export-library checks used generated PDFs to verify all four page rotations, a n
 - Editing overlap activated stitching without pressing Apply; subsequent horizontal and vertical edits immediately changed page positions.
 - At 130% scale with rotation and mirroring, the pattern transform and mat calibration stayed fixed as overlap changed. Overview retained its current viewing scale too.
 - Clearing an overlap field or entering excessive overlap preserved the last valid projected layout; correcting the value resumed live updates.
+
+## Undo/redo checks recorded on 2026-09-15
+
+- Calibration corner dragging, pattern panning, and rotation each restored their exact prior state with Undo; calibration Redo restored the dragged coordinates.
+- Undo removed a newly drawn measurement line, and Ctrl/Command + Shift + Z restored it. Measurement drawing retained the crosshair and stayed in measurement mode after release.
+- Hiding an SVG layer, undoing, and redoing restored visibility through false → true → false.
+- Three successive overlap edits formed one undo step. Undo restored the earlier layout and its measurement marks; Redo restored the exact raw input value `0.123456`.
+- Undoing an exit from Magnify restored both the magnified view and its tool, so the next click toggled the view correctly.
+- History restored physical field values correctly when the current unit was centimeters.
+- The header, including Undo/Redo, fit a 320 px-wide viewport. The measurement Previous/Next row has 12 px of space below it before the action buttons.
+
+These are observed checks in the development browser session, not a claim that every control combination or browser has been tested. Keyboard handling preserves native text undo inside inputs; application history is available from the header buttons.
 
 ## Remaining validation
 
